@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Major Streets Learning Tool</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background: #007bff;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    main {
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    select, input, button {
+      padding: 10px;
+      font-size: 16px;
+      margin: 8px 5px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    button {
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+
+    a {
+      display: inline-block;
+      margin-left: 5px;
+      font-size: 16px;
+      color: #007bff;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .map-toggle {
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    /* Flashcards container: responsive grid */
+    .flashcard-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 20px;
+      justify-items: center;
+      margin-top: 15px;
+    }
+
+    /* Flashcard size and perspective */
+    .flashcard {
+      width: 180px;
+      height: 120px;
+      perspective: 1000px;
+      cursor: pointer;
+    }
+
+    .flashcard-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.6s;
+      transform-style: preserve-3d;
+    }
+
+    .flashcard.flip .flashcard-inner {
+      transform: rotateY(180deg);
+    }
+
+    .flashcard-front, .flashcard-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backface-visibility: hidden;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      font-weight: bold;
+      font-size: 18px;
+      text-align: center;
+      padding: 10px;
+    }
+
+    .flashcard-front {
+      background: linear-gradient(135deg, #007bff, #00aaff);
+      color: white;
+    }
+
+    .flashcard-back {
+      background: linear-gradient(135deg, #f8f9fa, #e0e0e0);
+      color: #333;
+      transform: rotateY(180deg);
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    Major Streets Learning Tool
+  </header>
+
+  <main>
+    <!-- City/Region/Street Selection -->
+    <div class="card">
+      <h2>Explore by City, Region & Street</h2>
+
+      <div class="map-toggle">
+        <button onclick="setMapService('google')">Google Maps</button>
+        <button onclick="setMapService('apple')">Apple Maps</button>
+      </div>
+
+      <label for="citySelect">City:</label>
+      <select id="citySelect" onchange="showRegions()">
+        <option value="">--Select a City--</option>
+        <option value="losangeles">Los Angeles</option>
+        <option value="newyork">New York</option>
+        <option value="chicago">Chicago</option>
+        <option value="miami">Miami</option>
+        <option value="houston">Houston</option>
+        <option value="sanfrancisco">San Francisco</option>
+        <option value="boston">Boston</option>
+        <option value="seattle">Seattle</option>
+      </select>
+
+      <label for="regionSelect" id="regionLabel">Region:</label>
+      <select id="regionSelect" onchange="showStreets()">
+        <option value="">--Select a Region--</option>
+      </select>
+
+      <label for="streetSelect">Street:</label>
+      <select id="streetSelect" onchange="showLink()">
+        <option value="">--Select a Street--</option>
+      </select>
+
+      <div id="linkBox" style="margin-top:15px;">
+        <p>Select a city, region, and street to get a map link.</p>
+      </div>
+    </div>
+
+    <!-- Street Search -->
+    <div class="card">
+      <h2>Search Street</h2>
+      <input type="text" id="streetSearch" placeholder="Type a street name..." oninput="searchStreet()">
+      <div id="searchResults" style="margin-top:15px;">
+        <p>Type a street name to search.</p>
+      </div>
+    </div>
+
+    <!-- Flashcards -->
+    <div class="card">
+      <h2>Flashcards Practice</h2>
+      <p>Click a card to flip and see the city/region. Shuffle them randomly:</p>
+      <button onclick="shuffleFlashcards()">Shuffle Flashcards</button>
+      <div class="flashcard-container" id="flashcards"></div>
+    </div>
+  </main>
+
+  <script>
+    var mapService = "google";
+
+    function setMapService(service) {
+      mapService = service;
+      showLink();
+    }
+
+    var data = {
+      losangeles: {
+        "Santa Monica": ["Ocean Avenue", "Wilshire Boulevard", "Lincoln Boulevard"],
+        "Hollywood": ["Hollywood Boulevard", "Sunset Boulevard", "Vine Street"],
+        "Downtown": ["Broadway", "Figueroa Street", "Main Street"],
+        "Beverly Hills": ["Rodeo Drive", "Wilshire Boulevard", "Santa Monica Boulevard"]
+      },
+      newyork: {
+        "Manhattan": ["Broadway", "Fifth Avenue", "Wall Street", "Madison Avenue", "Park Avenue"],
+        "Brooklyn": ["Flatbush Avenue", "Atlantic Avenue", "Bedford Avenue"],
+        "Queens": ["Queens Boulevard", "Steinway Street", "Northern Boulevard"],
+        "Bronx": ["Grand Concourse", "Fordham Road"],
+        "Staten Island": ["Victory Boulevard", "Richmond Avenue"]
+      },
+      chicago: {
+        "Downtown (Loop)": ["Michigan Avenue", "State Street", "Wacker Drive"],
+        "North Side": ["Clark Street", "Halsted Street", "Lincoln Avenue"],
+        "South Side": ["Stony Island Avenue", "Cottage Grove Avenue"]
+      },
+      sanfrancisco: {
+        "Downtown": ["Market Street", "Mission Street", "Van Ness Avenue"],
+        "Chinatown": ["Grant Avenue", "Stockton Street"],
+        "Fisherman's Wharf": ["Jefferson Street", "Beach Street"],
+        "Marina": ["Lombard Street", "Chestnut Street"]
+      },
+      miami: {
+        "Downtown": ["Biscayne Boulevard", "Flagler Street"],
+        "South Beach": ["Ocean Drive", "Collins Avenue", "Washington Avenue"],
+        "Brickell": ["Brickell Avenue", "SE 1st Avenue"]
+      },
+      houston: {
+        "Downtown": ["Main Street", "Texas Avenue", "Travis Street"],
+        "Midtown": ["Bagby Street", "Elgin Street"],
+        "Uptown": ["Westheimer Road", "Post Oak Boulevard"],
+        "Museum District": ["Montrose Boulevard", "Binz Street"]
+      },
+      boston: {
+        "Back Bay": ["Boylston Street", "Newbury Street", "Commonwealth Avenue"],
+        "Downtown": ["Tremont Street", "Beacon Street", "Washington Street"],
+        "South End": ["Columbus Avenue", "Shawmut Avenue"]
+      },
+      seattle: {
+        "Downtown": ["Pike Street", "Pine Street", "2nd Avenue"],
+        "Capitol Hill": ["Broadway", "15th Avenue", "Madison Street"],
+        "International District": ["Jackson Street", "Maynard Avenue"]
+      }
+    };
+
+    // Dropdown functions
+    function showRegions() {
+      var city = document.getElementById("citySelect").value;
+      var regionSelect = document.getElementById("regionSelect");
+      var streetSelect = document.getElementById("streetSelect");
+      regionSelect.innerHTML = "<option value=''>--Select a Region--</option>";
+      streetSelect.innerHTML = "<option value=''>--Select a Street--</option>";
+      document.getElementById("linkBox").innerHTML = "<p>Select a region or street.</p>";
+
+      if (data[city]) {
+        var cityData = data[city];
+        if (typeof cityData === "object" && !Array.isArray(cityData)) {
+          regionSelect.style.display = "inline-block";
+          document.getElementById("regionLabel").style.display = "inline-block";
+          for (var region in cityData) {
+            var option = document.createElement("option");
+            option.value = region;
+            option.textContent = region;
+            regionSelect.appendChild(option);
+          }
+        } else if (Array.isArray(cityData)) {
+          regionSelect.style.display = "none";
+          document.getElementById("regionLabel").style.display = "none";
+          cityData.forEach(function(street) {
+            var option = document.createElement("option");
+            option.value = street;
+            option.textContent = street;
+            streetSelect.appendChild(option);
+          });
+        }
+      }
+    }
+
+    function showStreets() {
+      var city = document.getElementById("citySelect").value;
+      var region = document.getElementById("regionSelect").value;
+      var streetSelect = document.getElementById("streetSelect");
+      streetSelect.innerHTML = "<option value=''>--Select a Street--</option>";
+      document.getElementById("linkBox").innerHTML = "<p>Select a street.</p>";
+
+      if (data[city]) {
+        var cityData = data[city];
+        if (region && cityData[region]) {
+          cityData[region].forEach(function(street) {
+            var option = document.createElement("option");
+            option.value = street;
+            option.textContent = street;
+            streetSelect.appendChild(option);
+          });
+        }
+      }
+    }
+
+    function showLink() {
+      var city = document.getElementById("citySelect").value;
+      var region = document.getElementById("regionSelect").value;
+      var street = document.getElementById("streetSelect").value;
+      var container = document.getElementById("linkBox");
+
+      if (street) {
+        var mapsUrl;
+        if (mapService === "google") {
+          mapsUrl = "https://www.google.com/maps/search/" + encodeURIComponent(street + " " + (region ? region + " " : "") + city);
+        } else {
+          mapsUrl = "https://maps.apple.com/?q=" + encodeURIComponent(street + " " + (region ? region + " " : "") + city);
+        }
+        container.innerHTML = "<a href='" + mapsUrl + "' target='_blank'>Open " + street + " in " + (mapService === "google" ? "Google Maps" : "Apple Maps") + "</a>";
+      } else {
+        container.innerHTML = "<p>Select a street.</p>";
+      }
+    }
+
+    // Flashcards
+    var flashcardsContainer = document.getElementById("flashcards");
+
+    function loadFlashcards() {
+      flashcardsContainer.innerHTML = "";
+      for (var city in data) {
+        var cityData = data[city];
+        if (Array.isArray(cityData)) {
+          cityData.forEach(function(street) {
+            createFlashcard(street, "", city);
+          });
+        } else {
+          for (var region in cityData) {
+            cityData[region].forEach(function(street) {
+              createFlashcard(street, region, city);
+            });
+          }
+        }
+      }
+    }
+
+    function createFlashcard(street, region, city) {
+      var card = document.createElement("div");
+      card.className = "flashcard";
+      card.innerHTML = `
+        <div class="flashcard-inner">
+          <div class="flashcard-front">${street}</div>
+          <div class="flashcard-back">
+            ${street} → ${region ? region + ", " : ""}${capitalize(city)}
+          </div>
+        </div>
+      `;
+      card.addEventListener("click", function() {
+        this.classList.toggle("flip");
+      });
+      flashcardsContainer.appendChild(card);
+    }
+
+    function capitalize(str) {
+      return str.replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    function shuffleFlashcards() {
+      var container = flashcardsContainer;
+      var cards = Array.from(container.children);
+      for (let i = cards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cards[i], cards[j]] = [cards[j], cards[i]];
+      }
+      container.innerHTML = "";
+      cards.forEach(card => container.appendChild(card));
+    }
+
+    // Search
+    function searchStreet() {
+      var query = document.getElementById("streetSearch").value.toLowerCase();
+      var resultsContainer = document.getElementById("searchResults");
+      resultsContainer.innerHTML = "";
+
+      if (!query) {
+        resultsContainer.innerHTML = "<p>Type a street name to search.</p>";
+        return;
+      }
+
+      var found = false;
+
+      for (var city in data) {
+        var cityData = data[city];
+        if (Array.isArray(cityData)) {
+          cityData.forEach(function(street) {
+            if (street.toLowerCase().includes(query)) {
+              resultsContainer.innerHTML += `<p>${street} → ${capitalize(city)} <a href="https://www.google.com/maps/search/${encodeURIComponent(street + " " + city)}" target="_blank">Map</a></p>`;
+              found = true;
+            }
+          });
+        } else {
+          for (var region in cityData) {
+            cityData[region].forEach(function(street) {
+              if (street.toLowerCase().includes(query)) {
+                resultsContainer.innerHTML += `<p>${street} → ${region}, ${capitalize(city)} <a href="https://www.google.com/maps/search/${encodeURIComponent(street + " " + region + " " + city)}" target="_blank">Map</a></p>`;
+                found = true;
+              }
+            });
+          }
+        }
+      }
+
+      if (!found) {
+        resultsContainer.innerHTML = "<p>No matching streets found.</p>";
+      }
+    }
+
+    loadFlashcards();
+  </script>
+
+</body>
+</html>
